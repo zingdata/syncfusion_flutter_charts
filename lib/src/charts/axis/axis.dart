@@ -4087,6 +4087,23 @@ abstract class _AxisRenderer {
   double get outerSize => _outerSize;
   double _outerSize = 0.0;
 
+  // Helper method to check for intersection with a specific size
+  bool _checkIntersection(AxisLabel current, AxisLabel source, Size newSize) {
+    // Create a temporary label with the new size for intersection test
+    final AxisLabel tempLabel = AxisLabel(
+      current.labelStyle,
+      newSize,
+      current.text,
+      current.value,
+      current.trimmedText,
+      current.renderText,
+    );
+    tempLabel.position = current.position;
+    tempLabel.isVisible = current.isVisible;
+    
+    return axis._isIntersect(tempLabel, source);
+  }
+
   Size _preferredSize(Size availableSize) {
     _axisBorderSize = 0.0;
     _maxLabelSize = 0.0;
@@ -4568,6 +4585,44 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
         rotationAngle = angle90Degree;
       } else if (action == AxisLabelIntersectAction.rotate45) {
         rotationAngle = angle45Degree;
+      } else if (action == AxisLabelIntersectAction.auto) {
+        // For auto mode, we need to check which rotation was applied
+        // This should match the logic in _applyAutoIntersectAction
+        // Since we don't have a way to know which rotation was actually applied,
+        // we'll use the same logic to determine it here
+
+        // Get the first two visible labels to check for intersection
+        final List<AxisLabel> visibleLabels = axis.visibleLabels
+            .where((label) => label.isVisible && label.position != null)
+            .toList();
+            
+        if (visibleLabels.length >= 2) {
+          final AxisLabel current = visibleLabels[1];
+          final AxisLabel source = visibleLabels[0];
+          
+          // Check if there's an intersection with no rotation
+          final Size normalSize = measureText(
+              current.renderText, current.labelStyle, axis.labelRotation);
+          final bool normalIntersect = _checkIntersection(current, source, normalSize);
+          
+          if (!normalIntersect) {
+            // No intersection - use standard rotation
+            rotationAngle = axis.labelRotation;
+          } else {
+            // Check if there's an intersection with 45-degree rotation
+            final Size rotate45Size = measureText(
+                current.renderText, current.labelStyle, angle45Degree);
+            final bool rotate45Intersect = _checkIntersection(current, source, rotate45Size);
+            
+            if (!rotate45Intersect) {
+              // No intersection with 45-degree rotation
+              rotationAngle = angle45Degree;
+            } else {
+              // Use 90-degree rotation
+              rotationAngle = angle90Degree;
+            }
+          }
+        }
       }
     }
 
@@ -4735,6 +4790,7 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
 
     _textPainter.paint(context.canvas, Offset(x, offset.dy));
   }
+
 }
 
 class _VerticalAxisRenderer extends _AxisRenderer {
@@ -4853,6 +4909,44 @@ class _VerticalAxisRenderer extends _AxisRenderer {
         rotationAngle = angle90Degree;
       } else if (action == AxisLabelIntersectAction.rotate45) {
         rotationAngle = angle45Degree;
+      } else if (action == AxisLabelIntersectAction.auto) {
+        // For auto mode, we need to check which rotation was applied
+        // This should match the logic in _applyAutoIntersectAction
+        // Since we don't have a way to know which rotation was actually applied,
+        // we'll use the same logic to determine it here
+
+        // Get the first two visible labels to check for intersection
+        final List<AxisLabel> visibleLabels = axis.visibleLabels
+            .where((label) => label.isVisible && label.position != null)
+            .toList();
+            
+        if (visibleLabels.length >= 2) {
+          final AxisLabel current = visibleLabels[1];
+          final AxisLabel source = visibleLabels[0];
+          
+          // Check if there's an intersection with no rotation
+          final Size normalSize = measureText(
+              current.renderText, current.labelStyle, axis.labelRotation);
+          final bool normalIntersect = _checkIntersection(current, source, normalSize);
+          
+          if (!normalIntersect) {
+            // No intersection - use standard rotation
+            rotationAngle = axis.labelRotation;
+          } else {
+            // Check if there's an intersection with 45-degree rotation
+            final Size rotate45Size = measureText(
+                current.renderText, current.labelStyle, angle45Degree);
+            final bool rotate45Intersect = _checkIntersection(current, source, rotate45Size);
+            
+            if (!rotate45Intersect) {
+              // No intersection with 45-degree rotation
+              rotationAngle = angle45Degree;
+            } else {
+              // Use 90-degree rotation
+              rotationAngle = angle90Degree;
+            }
+          }
+        }
       }
     }
 
@@ -5027,6 +5121,8 @@ class _VerticalAxisRenderer extends _AxisRenderer {
     _textPainter.paint(context.canvas, Offset.zero);
     context.canvas.restore();
   }
+
+
 }
 
 abstract class _MultilevelLabelBorderShape {
