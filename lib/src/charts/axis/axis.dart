@@ -2589,7 +2589,9 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     // The previous label which is not intersecting with the current label.
     AxisLabel source;
     AxisLabel current = visibleLabels[0];
-    final AxisLabel Function(AxisLabel, AxisLabel, double, _AlignLabel, {int i})
+    bool has45DegreeRotation = false;
+    bool has90DegreeRotation = false;
+    final AxisLabel Function(AxisLabel, AxisLabel, double, _AlignLabel, bool, bool, {int i})
         applyLabelIntersectAction = _applyLabelIntersectAction();
 
     if (edgeLabelPlacement == EdgeLabelPlacement.hide) {
@@ -2607,7 +2609,8 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
       current.position = betweenLabelsAlign(pointToPixel(current.value), current);
       if (effectiveLabelIntersectAction != AxisLabelIntersectAction.hide &&
           effectiveLabelIntersectAction != AxisLabelIntersectAction.multipleRows) {
-        source = applyLabelIntersectAction(current, source, extent, betweenLabelsAlign);
+        source = applyLabelIntersectAction(
+            current, source, extent, betweenLabelsAlign, has45DegreeRotation, has90DegreeRotation);
       } else {
         source = current;
       }
@@ -2621,7 +2624,8 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
       source.position = betweenLabelsAlign(pointToPixel(source.value), source);
       if (effectiveLabelIntersectAction != AxisLabelIntersectAction.hide &&
           effectiveLabelIntersectAction != AxisLabelIntersectAction.multipleRows) {
-        source = applyLabelIntersectAction(current, source, edgeLabelsExtent, startLabelAlign);
+        source = applyLabelIntersectAction(current, source, edgeLabelsExtent, startLabelAlign,
+            has45DegreeRotation, has90DegreeRotation);
       } else {
         source = current;
       }
@@ -2630,23 +2634,30 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     for (int i = startIndex; i < endIndex; i++) {
       current = visibleLabels[i];
       current.position = betweenLabelsAlign(pointToPixel(current.value), current);
-      source = applyLabelIntersectAction(current, source, extent, betweenLabelsAlign, i: i);
+      source = applyLabelIntersectAction(
+          current, source, extent, betweenLabelsAlign, has45DegreeRotation, has90DegreeRotation,
+          i: i);
     }
 
     if (edgeLabelPlacement == EdgeLabelPlacement.hide) {
       current = visibleLabels[endIndex];
       current.position = endLabelAlign(pointToPixel(current.value), current);
-      applyLabelIntersectAction(current, source, edgeLabelsExtent, endLabelAlign, i: endIndex);
+      applyLabelIntersectAction(current, source, edgeLabelsExtent, endLabelAlign,
+          has45DegreeRotation, has90DegreeRotation,
+          i: endIndex);
       visibleLabels[length - 1].isVisible = false;
     } else {
       current = visibleLabels[endIndex];
       current.position = endLabelAlign(pointToPixel(current.value), current);
-      applyLabelIntersectAction(current, source, edgeLabelsExtent, endLabelAlign, i: endIndex);
+      applyLabelIntersectAction(current, source, edgeLabelsExtent, endLabelAlign,
+          has45DegreeRotation, has90DegreeRotation,
+          i: endIndex);
     }
   }
 
-  AxisLabel Function(AxisLabel source, AxisLabel target, double extent, _AlignLabel align, {int i})
-      _applyLabelIntersectAction() {
+  AxisLabel Function(AxisLabel source, AxisLabel target, double extent, _AlignLabel align,
+      bool has45DegreeRotation, bool has90DegreeRotation,
+      {int i}) _applyLabelIntersectAction() {
     switch (effectiveLabelIntersectAction) {
       case AxisLabelIntersectAction.none:
         return _applyNoneIntersectAction;
@@ -2673,21 +2684,21 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     }
   }
 
-  AxisLabel _applyNoneIntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyNoneIntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     return current;
   }
 
-  AxisLabel _applyHideIntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyHideIntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     current.isVisible = !_isIntersect(current, source);
     return current.isVisible ? current : source;
   }
 
-  AxisLabel _applyWrapIntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyWrapIntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     final List<String> words = current.renderText.split(RegExp(r'\s+'));
     final int wrapLength = words.length;
@@ -2723,8 +2734,8 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     return current;
   }
 
-  AxisLabel _applyTrimIntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyTrimIntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     final TextStyle textStyle = current.labelStyle;
     if (current.labelSize.width > extent) {
@@ -2740,8 +2751,8 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     return current;
   }
 
-  AxisLabel _applyMultipleRowsIntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyMultipleRowsIntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     if (_isIntersect(current, source)) {
       current
@@ -2770,8 +2781,8 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     }
   }
 
-  AxisLabel _applyRotate90IntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyRotate90IntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, angle90Degree)
@@ -2779,8 +2790,8 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     return current;
   }
 
-  AxisLabel _applyRotate45IntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyRotate45IntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, angle45Degree)
@@ -2788,16 +2799,17 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     return current;
   }
 
-  AxisLabel _applyAutoIntersectAction(
-      AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
+  AxisLabel _applyAutoIntersectAction(AxisLabel current, AxisLabel source, double extent,
+      _AlignLabel align, bool has45DegreeRotation, bool has90DegreeRotation,
       {int i = 0}) {
     // First check if there's an intersection with the default rotation
+
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, labelRotation)
       ..position = align(pointToPixel(current.value), current);
 
     // If no intersection, keep the label with normal rotation
-    if (!_isIntersect(current, source)) {
+    if (!_isIntersect(current, source) && !has45DegreeRotation && !has90DegreeRotation) {
       // No need to hide - display normally
       debugPrint('auto 1: ${current.renderText}');
       return current;
@@ -2809,8 +2821,9 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
       ..position = align(pointToPixel(current.value), current);
 
     // If no intersection with 45-degree rotation, use it
-    if (!_isIntersect(current, source)) {
+    if ((!_isIntersect(current, source) || has45DegreeRotation) && !has90DegreeRotation) {
       debugPrint('auto 2: ${current.renderText}');
+      has45DegreeRotation = true;
       return current;
     }
 
@@ -2820,6 +2833,7 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
       ..position = align(pointToPixel(current.value), current);
 
     debugPrint('auto 3: ${current.renderText}');
+    has90DegreeRotation = true;
     return current;
   }
 
