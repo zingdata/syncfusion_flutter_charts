@@ -2799,7 +2799,7 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     // 1. First try default/no rotation - keep it if no intersection
     // 2. Try 45-degree rotation if there's intersection
     // 3. Use 90-degree rotation as last resort if 45-degree still intersects
-    // 
+    //
     // The method maintains two state flags (has45DegreeRotation, has90DegreeRotation)
     // which are used later to determine the consistent rotation for all labels
 
@@ -3955,11 +3955,11 @@ abstract class _AxisRenderer {
 
   double _maxLabelSize = 0.0;
   double _axisBorderSize = 0.0;
-  
+
   /// Helper method to compare two Size objects with tolerance
   bool areEqualSizes(Size size1, Size size2, double tolerance) {
     return (size1.width - size2.width).abs() < tolerance &&
-           (size1.height - size2.height).abs() < tolerance;
+        (size1.height - size2.height).abs() < tolerance;
   }
 
   double get innerSize => _innerSize;
@@ -4448,16 +4448,16 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
           final Size normalSize = measureText(label.renderText, label.labelStyle, 0);
           final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
           final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
-          
+
           // Check which rotation matches the current size with higher tolerance precision
           const double tolerance = 0.1; // More forgiving tolerance
-          
+
           if (areEqualSizes(label.labelSize, size45, tolerance)) {
             has45DegreeRotation = true;
           } else if (areEqualSizes(label.labelSize, size90, tolerance)) {
             has90DegreeRotation = true;
           }
-          
+
           // Once we've found both rotation types, no need to check more labels
           if (has45DegreeRotation && has90DegreeRotation) {
             break;
@@ -4603,53 +4603,32 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
 
   @override
   void _drawTitle(PaintingContext context, Offset offset) {
-    final int rotationAngle = axis.invertElementsOrder ? 270 : 90;
     final TextStyle textStyle =
         axis.chartThemeData!.axisTitleTextStyle!.merge(axis.title.textStyle);
-    final TextSpan span = TextSpan(text: axis.title.text, style: textStyle);
+    final TextSpan span = TextSpan(
+      text: axis.title.text,
+      style: textStyle,
+    );
     _textPainter
       ..text = span
       ..textAlign = TextAlign.center
       ..textDirection = TextDirection.ltr;
     _textPainter.layout();
 
-    double x = offset.dx;
-    if (!axis.invertElementsOrder) {
-      x += _textPainter.height;
-    }
-
-    late double y;
+    late double x;
     switch (axis.title.alignment) {
       case ChartAlignment.near:
-        y = offset.dy + axis.size.height;
-        if (!axis.invertElementsOrder) {
-          y -= _textPainter.width;
-        }
+        x = offset.dx;
         break;
       case ChartAlignment.center:
-        y = offset.dy +
-            axis.size.height / 2 +
-            (_textPainter.width / 2 * (axis.invertElementsOrder ? 1 : -1));
+        x = offset.dx + axis.size.width / 2 - _textPainter.size.width / 2;
         break;
       case ChartAlignment.far:
-        y = offset.dy;
-        if (axis.invertElementsOrder) {
-          y += _textPainter.width;
-        }
+        x = offset.dx + axis.size.width - _textPainter.size.width;
         break;
     }
 
-    context.canvas
-      ..save()
-      ..translate(x, y)
-      ..rotate(degreeToRadian(rotationAngle));
-    _textPainter.paint(context.canvas, Offset.zero);
-    context.canvas.restore();
-  }
-
-  // Helper method to check if two doubles are approximately equal
-  bool almostEqual(double a, double b) {
-    return (a - b).abs() < 0.01;
+    _textPainter.paint(context.canvas, Offset(x, offset.dy));
   }
 }
 
@@ -4781,16 +4760,16 @@ class _VerticalAxisRenderer extends _AxisRenderer {
           final Size normalSize = measureText(label.renderText, label.labelStyle, 0);
           final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
           final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
-          
+
           // Check which rotation matches the current size with higher tolerance precision
           const double tolerance = 0.1; // More forgiving tolerance
-          
+
           if (areEqualSizes(label.labelSize, size45, tolerance)) {
             has45DegreeRotation = true;
           } else if (areEqualSizes(label.labelSize, size90, tolerance)) {
             has90DegreeRotation = true;
           }
-          
+
           // Once we've found both rotation types, no need to check more labels
           if (has45DegreeRotation && has90DegreeRotation) {
             break;
