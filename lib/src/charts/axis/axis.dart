@@ -4487,7 +4487,7 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
         }
       }
 
-      Offset position = Offset(labelOffset.dx + label.position!, dy);
+      Offset position = Offset(labelOffset.dx + label.position!, dy + 12);
       label.region =
           Rect.fromLTWH(position.dx, position.dy, label.labelSize.width, label.labelSize.height);
       position += offset;
@@ -4818,13 +4818,19 @@ class _VerticalAxisRenderer extends _AxisRenderer {
       ..textAlign = TextAlign.center
       ..textDirection = TextDirection.ltr
       ..layout();
+
     if (rotationAngle == 0) {
       _textPainter.paint(context.canvas, position);
     } else {
+      // When labels are rotated, adjust their position to prevent overlap with chart
+      final double adjustY = rotationAngle == angle45Degree
+          ? label.labelSize.height * 0.3 // For 45-degree rotation, move down by 30% of height
+          : label.labelSize.height * 0.5; // For 90-degree rotation, move down by 50% of height
+
       context.canvas
         ..save()
-        ..translate(
-            position.dx + label.labelSize.width / 2, position.dy + label.labelSize.height / 2)
+        ..translate(position.dx + label.labelSize.width / 2,
+            position.dy + label.labelSize.height / 2 + adjustY)
         ..rotate(degreeToRadian(rotationAngle));
       _textPainter.paint(
           context.canvas, Offset(-_textPainter.size.width / 2, -_textPainter.size.height / 2));
