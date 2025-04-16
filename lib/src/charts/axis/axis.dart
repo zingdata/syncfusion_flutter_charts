@@ -2791,14 +2791,13 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
   AxisLabel _applyAutoIntersectAction(
       AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
       {int i = 0}) {
-    // First try with no rotation to check if there's an intersection
+    // First check if there's an intersection with the default rotation
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, labelRotation)
       ..position = align(pointToPixel(current.value), current);
     
-    // Check if there's an intersection with the current configuration
+    // If no intersection, hide the label
     if (!_isIntersect(current, source)) {
-      // No intersection - hide the label
       current.isVisible = false;
       return current;
     }
@@ -2808,13 +2807,12 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
       ..labelSize = measureText(current.renderText, current.labelStyle, angle45Degree)
       ..position = align(pointToPixel(current.value), current);
     
-    // Check if there's still an intersection with 45-degree rotation
+    // If no intersection with 45-degree rotation, use it
     if (!_isIntersect(current, source)) {
-      // No intersection with 45-degree rotation, use this configuration
       return current;
     }
     
-    // If there's still an intersection, use 90-degree rotation
+    // If still intersecting, use 90-degree rotation
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, angle90Degree)
       ..position = align(pointToPixel(current.value), current);
@@ -4433,65 +4431,26 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
       } else if (action == AxisLabelIntersectAction.rotate45) {
         rotationAngle = angle45Degree;
       } else if (action == AxisLabelIntersectAction.auto) {
-        // For auto mode, we need to check all adjacent label pairs
-        // This should match the logic in _applyAutoIntersectAction
-        
-        // First get all visible labels
-        final List<AxisLabel> visibleLabels = axis.visibleLabels
-            .where((label) => label.isVisible && label.position != null)
-            .toList();
-        
-        // No need to process if less than 2 labels
-        if (visibleLabels.length >= 2) {
-          // Start with standard rotation and see if any adjacent labels overlap
-          bool hasOverlap = false;
+        // We'll let _applyAutoIntersectAction handle the rotation
+        // By checking the label dimensions, we can determine what rotation was applied
+        for (final AxisLabel label in axis.visibleLabels) {
+          // Detect if any label has 90-degree rotation (higher priority)
+          if (!label.isVisible) continue;
           
-          // Check all adjacent label pairs with standard rotation
-          for (int i = 0; i < visibleLabels.length - 1; i++) {
-            final AxisLabel current = visibleLabels[i + 1];
-            final AxisLabel source = visibleLabels[i];
-            
-            // Check with standard rotation
-            final Size normalSize = measureText(
-                current.renderText, current.labelStyle, axis.labelRotation);
-            final bool normalIntersect = _checkIntersection(current, source, normalSize);
-            
-            if (normalIntersect) {
-              hasOverlap = true;
-              break;
-            }
+          // The 90-degree rotation is the most extreme, so we check it first
+          final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
+          if ((label.labelSize.width - size90.width).abs() < 0.01 && 
+              (label.labelSize.height - size90.height).abs() < 0.01) {
+            rotationAngle = angle90Degree;
+            break;
           }
           
-          if (!hasOverlap) {
-            // No overlap with standard rotation - keep the angle, labels will be hidden during rendering
-            rotationAngle = axis.labelRotation;
-          } else {
-            // Try with 45-degree rotation
-            bool hasOverlapAt45 = false;
-            
-            // Check all adjacent label pairs with 45-degree rotation
-            for (int i = 0; i < visibleLabels.length - 1; i++) {
-              final AxisLabel current = visibleLabels[i + 1];
-              final AxisLabel source = visibleLabels[i];
-              
-              // Check with 45-degree rotation
-              final Size rotate45Size = measureText(
-                  current.renderText, current.labelStyle, angle45Degree);
-              final bool rotate45Intersect = _checkIntersection(current, source, rotate45Size);
-              
-              if (rotate45Intersect) {
-                hasOverlapAt45 = true;
-                break;
-              }
-            }
-            
-            if (!hasOverlapAt45) {
-              // 45-degree rotation resolves all overlaps
-              rotationAngle = angle45Degree;
-            } else {
-              // Need 90-degree rotation
-              rotationAngle = angle90Degree;
-            }
+          // If no 90-degree rotation found, check for 45-degree
+          final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
+          if ((label.labelSize.width - size45.width).abs() < 0.01 && 
+              (label.labelSize.height - size45.height).abs() < 0.01) {
+            rotationAngle = angle45Degree;
+            // Don't break here as we might still find 90-degree rotation
           }
         }
       }
@@ -4499,8 +4458,8 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
 
     final bool isMultipleRows = action == AxisLabelIntersectAction.multipleRows;
     final bool isOutSide = axis.labelPosition == ChartDataLabelPosition.outside;
-    final bool normalOrder =
-        (!axis.invertElementsOrder && isOutSide) || (axis.invertElementsOrder && !isOutSide);
+    final bool normalOrder = (!axis.invertElementsOrder && isOutSide) ||
+        (axis.invertElementsOrder && !isOutSide);
     final List<AxisLabel> axisLabels = axis.visibleLabels;
     for (final AxisLabel label in axisLabels) {
       if (!label.isVisible || label.position == null || label.position!.isNaN) {
@@ -4627,32 +4586,53 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
 
   @override
   void _drawTitle(PaintingContext context, Offset offset) {
+    final int rotationAngle = axis.invertElementsOrder ? 270 : 90;
     final TextStyle textStyle =
         axis.chartThemeData!.axisTitleTextStyle!.merge(axis.title.textStyle);
-    final TextSpan span = TextSpan(
-      text: axis.title.text,
-      style: textStyle,
-    );
+    final TextSpan span = TextSpan(text: axis.title.text, style: textStyle);
     _textPainter
       ..text = span
       ..textAlign = TextAlign.center
       ..textDirection = TextDirection.ltr;
     _textPainter.layout();
 
-    late double x;
+    double x = offset.dx;
+    if (!axis.invertElementsOrder) {
+      x += _textPainter.height;
+    }
+
+    late double y;
     switch (axis.title.alignment) {
       case ChartAlignment.near:
-        x = offset.dx;
+        y = offset.dy + axis.size.height;
+        if (!axis.invertElementsOrder) {
+          y -= _textPainter.width;
+        }
         break;
       case ChartAlignment.center:
-        x = offset.dx + axis.size.width / 2 - _textPainter.size.width / 2;
+        y = offset.dy +
+            axis.size.height / 2 +
+            (_textPainter.width / 2 * (axis.invertElementsOrder ? 1 : -1));
         break;
       case ChartAlignment.far:
-        x = offset.dx + axis.size.width - _textPainter.size.width;
+        y = offset.dy;
+        if (axis.invertElementsOrder) {
+          y += _textPainter.width;
+        }
         break;
     }
 
-    _textPainter.paint(context.canvas, Offset(x, offset.dy));
+    context.canvas
+      ..save()
+      ..translate(x, y)
+      ..rotate(degreeToRadian(rotationAngle));
+    _textPainter.paint(context.canvas, Offset.zero);
+    context.canvas.restore();
+  }
+
+  // Helper method to check if two doubles are approximately equal
+  bool almostEqual(double a, double b) {
+    return (a - b).abs() < 0.01;
   }
 }
 
@@ -4769,67 +4749,27 @@ class _VerticalAxisRenderer extends _AxisRenderer {
         rotationAngle = angle90Degree;
       } else if (action == AxisLabelIntersectAction.rotate45) {
         rotationAngle = angle45Degree;
-      }
-    }
-    if (action == AxisLabelIntersectAction.auto) {
-      // For auto mode, we need to check all adjacent label pairs
-      // This should match the logic in _applyAutoIntersectAction
-      
-      // First get all visible labels
-      final List<AxisLabel> visibleLabels = axis.visibleLabels
-          .where((label) => label.isVisible && label.position != null)
-          .toList();
-      
-      // No need to process if less than 2 labels
-      if (visibleLabels.length >= 2) {
-        // Start with standard rotation and see if any adjacent labels overlap
-        bool hasOverlap = false;
-        
-        // Check all adjacent label pairs with standard rotation
-        for (int i = 0; i < visibleLabels.length - 1; i++) {
-          final AxisLabel current = visibleLabels[i + 1];
-          final AxisLabel source = visibleLabels[i];
+      } else if (action == AxisLabelIntersectAction.auto) {
+        // We'll let _applyAutoIntersectAction handle the rotation
+        // By checking the label dimensions, we can determine what rotation was applied
+        for (final AxisLabel label in axis.visibleLabels) {
+          // Detect if any label has 90-degree rotation (higher priority)
+          if (!label.isVisible) continue;
           
-          // Check with standard rotation
-          final Size normalSize = measureText(
-              current.renderText, current.labelStyle, axis.labelRotation);
-          final bool normalIntersect = _checkIntersection(current, source, normalSize);
-          
-          if (normalIntersect) {
-            hasOverlap = true;
+          // The 90-degree rotation is the most extreme, so we check it first
+          final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
+          if ((label.labelSize.width - size90.width).abs() < 0.01 && 
+              (label.labelSize.height - size90.height).abs() < 0.01) {
+            rotationAngle = angle90Degree;
             break;
           }
-        }
-        
-        if (!hasOverlap) {
-          // No overlap with standard rotation - keep the angle, labels will be hidden during rendering
-          rotationAngle = axis.labelRotation;
-        } else {
-          // Try with 45-degree rotation
-          bool hasOverlapAt45 = false;
           
-          // Check all adjacent label pairs with 45-degree rotation
-          for (int i = 0; i < visibleLabels.length - 1; i++) {
-            final AxisLabel current = visibleLabels[i + 1];
-            final AxisLabel source = visibleLabels[i];
-            
-            // Check with 45-degree rotation
-            final Size rotate45Size = measureText(
-                current.renderText, current.labelStyle, angle45Degree);
-            final bool rotate45Intersect = _checkIntersection(current, source, rotate45Size);
-            
-            if (rotate45Intersect) {
-              hasOverlapAt45 = true;
-              break;
-            }
-          }
-          
-          if (!hasOverlapAt45) {
-            // 45-degree rotation resolves all overlaps
+          // If no 90-degree rotation found, check for 45-degree
+          final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
+          if ((label.labelSize.width - size45.width).abs() < 0.01 && 
+              (label.labelSize.height - size45.height).abs() < 0.01) {
             rotationAngle = angle45Degree;
-          } else {
-            // Need 90-degree rotation
-            rotationAngle = angle90Degree;
+            // Don't break here as we might still find 90-degree rotation
           }
         }
       }
