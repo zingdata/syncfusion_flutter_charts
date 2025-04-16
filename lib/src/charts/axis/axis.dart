@@ -2795,37 +2795,41 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
   AxisLabel _applyAutoIntersectAction(
       AxisLabel current, AxisLabel source, double extent, _AlignLabel align,
       {int i = 0}) {
-    // First check if there's an intersection with the default rotation
+    // This method implements a progressive rotation strategy for axis labels:
+    // 1. First try default/no rotation - keep it if no intersection
+    // 2. Try 45-degree rotation if there's intersection
+    // 3. Use 90-degree rotation as last resort if 45-degree still intersects
+    // 
+    // The method maintains two state flags (has45DegreeRotation, has90DegreeRotation)
+    // which are used later to determine the consistent rotation for all labels
 
+    // Step 1: Try with default rotation first
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, labelRotation)
       ..position = align(pointToPixel(current.value), current);
 
-    // If no intersection, keep the label with normal rotation
+    // If no intersection, keep the label with default rotation
     if (!_isIntersect(current, source) && !has45DegreeRotation && !has90DegreeRotation) {
-      // No need to hide - display normally
-      debugPrint('auto 1: ${current.renderText}');
       return current;
     }
 
-    // If there's an intersection, try with 45-degree rotation
+    // Step 2: Try with 45-degree rotation
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, angle45Degree)
       ..position = align(pointToPixel(current.value), current);
 
     // If no intersection with 45-degree rotation, use it
-    if ((!_isIntersect(current, source) || has45DegreeRotation) && !has90DegreeRotation) {
-      debugPrint('auto 2: ${current.renderText}');
+    if (!_isIntersect(current, source) || has45DegreeRotation) {
       has45DegreeRotation = true;
       return current;
     }
 
-    // If still intersecting, use 90-degree rotation
+    // Step 3: Try with 90-degree rotation
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, angle90Degree)
       ..position = align(pointToPixel(current.value), current);
 
-    debugPrint('auto 3: ${current.renderText}');
+    // If we reached here, we'll use 90-degree rotation regardless of whether it fixed the intersection
     has90DegreeRotation = true;
     return current;
   }
@@ -3951,6 +3955,12 @@ abstract class _AxisRenderer {
 
   double _maxLabelSize = 0.0;
   double _axisBorderSize = 0.0;
+  
+  /// Helper method to compare two Size objects with tolerance
+  bool areEqualSizes(Size size1, Size size2, double tolerance) {
+    return (size1.width - size2.width).abs() < tolerance &&
+           (size1.height - size2.height).abs() < tolerance;
+  }
 
   double get innerSize => _innerSize;
   double _innerSize = 0.0;
@@ -4424,36 +4434,41 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
       } else if (action == AxisLabelIntersectAction.rotate45) {
         rotationAngle = angle45Degree;
       } else if (action == AxisLabelIntersectAction.auto) {
-        // We need to determine which rotation was applied, if any
-        // First check if there are any 45-degree rotated labels
+        // Determine rotation based on measured sizes of label elements
         bool has45DegreeRotation = false;
         bool has90DegreeRotation = false;
 
+        // First pass: detect which rotation types are applied to any labels
         for (final AxisLabel label in axis.visibleLabels) {
           if (!label.isVisible) {
             continue;
           }
 
-          // Check if any labels have 45-degree rotation
+          // Use more precise comparison to detect rotation
+          final Size normalSize = measureText(label.renderText, label.labelStyle, 0);
           final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
-          if ((label.labelSize.width - size45.width).abs() < 0.01 &&
-              (label.labelSize.height - size45.height).abs() < 0.01) {
-            has45DegreeRotation = true;
-          }
-
-          // Check if any labels have 90-degree rotation
           final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
-          if ((label.labelSize.width - size90.width).abs() < 0.01 &&
-              (label.labelSize.height - size90.height).abs() < 0.01) {
+          
+          // Check which rotation matches the current size with higher tolerance precision
+          const double tolerance = 0.1; // More forgiving tolerance
+          
+          if (areEqualSizes(label.labelSize, size45, tolerance)) {
+            has45DegreeRotation = true;
+          } else if (areEqualSizes(label.labelSize, size90, tolerance)) {
             has90DegreeRotation = true;
+          }
+          
+          // Once we've found both rotation types, no need to check more labels
+          if (has45DegreeRotation && has90DegreeRotation) {
+            break;
           }
         }
 
-        // Apply the most extreme rotation found - 90° only if needed
-        if (has45DegreeRotation) {
-          rotationAngle = angle45Degree;
-        } else if (has90DegreeRotation) {
+        // Apply the most extreme rotation found - prioritize 90° if present
+        if (has90DegreeRotation) {
           rotationAngle = angle90Degree;
+        } else if (has45DegreeRotation) {
+          rotationAngle = angle45Degree;
         }
       }
     }
@@ -4752,30 +4767,37 @@ class _VerticalAxisRenderer extends _AxisRenderer {
       } else if (action == AxisLabelIntersectAction.rotate45) {
         rotationAngle = angle45Degree;
       } else if (action == AxisLabelIntersectAction.auto) {
-        // We need to determine which rotation was applied, if any
-        // First check if there are any 45-degree rotated labels
+        // Determine rotation based on measured sizes of label elements
         bool has45DegreeRotation = false;
         bool has90DegreeRotation = false;
 
+        // First pass: detect which rotation types are applied to any labels
         for (final AxisLabel label in axis.visibleLabels) {
-          if (!label.isVisible) continue;
-
-          // Check if any labels have 45-degree rotation
-          final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
-          if ((label.labelSize.width - size45.width).abs() < 0.01 &&
-              (label.labelSize.height - size45.height).abs() < 0.01) {
-            has45DegreeRotation = true;
+          if (!label.isVisible) {
+            continue;
           }
 
-          // Check if any labels have 90-degree rotation
+          // Use more precise comparison to detect rotation
+          final Size normalSize = measureText(label.renderText, label.labelStyle, 0);
+          final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
           final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
-          if ((label.labelSize.width - size90.width).abs() < 0.01 &&
-              (label.labelSize.height - size90.height).abs() < 0.01) {
+          
+          // Check which rotation matches the current size with higher tolerance precision
+          const double tolerance = 0.1; // More forgiving tolerance
+          
+          if (areEqualSizes(label.labelSize, size45, tolerance)) {
+            has45DegreeRotation = true;
+          } else if (areEqualSizes(label.labelSize, size90, tolerance)) {
             has90DegreeRotation = true;
+          }
+          
+          // Once we've found both rotation types, no need to check more labels
+          if (has45DegreeRotation && has90DegreeRotation) {
+            break;
           }
         }
 
-        // Apply the most extreme rotation found - 90° only if needed
+        // Apply the most extreme rotation found - prioritize 90° if present
         if (has90DegreeRotation) {
           rotationAngle = angle90Degree;
         } else if (has45DegreeRotation) {
