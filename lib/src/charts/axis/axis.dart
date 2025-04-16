@@ -4487,7 +4487,7 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
         }
       }
 
-      Offset position = Offset(labelOffset.dx + label.position!, dy + 12);
+      Offset position = Offset(labelOffset.dx + label.position!, dy + 30);
       label.region =
           Rect.fromLTWH(position.dx, position.dy, label.labelSize.width, label.labelSize.height);
       position += offset;
