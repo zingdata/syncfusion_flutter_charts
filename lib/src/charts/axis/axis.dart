@@ -2795,28 +2795,28 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, labelRotation)
       ..position = align(pointToPixel(current.value), current);
-    
+
     // If no intersection, keep the label with normal rotation
     if (!_isIntersect(current, source)) {
       // No need to hide - display normally
       return current;
     }
-    
+
     // If there's an intersection, try with 45-degree rotation
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, angle45Degree)
       ..position = align(pointToPixel(current.value), current);
-    
+
     // If no intersection with 45-degree rotation, use it
     if (!_isIntersect(current, source)) {
       return current;
     }
-    
+
     // If still intersecting, use 90-degree rotation
     current
       ..labelSize = measureText(current.renderText, current.labelStyle, angle90Degree)
       ..position = align(pointToPixel(current.value), current);
-    
+
     return current;
   }
 
@@ -4435,38 +4435,40 @@ class _HorizontalAxisRenderer extends _AxisRenderer {
         // First check if there are any 45-degree rotated labels
         bool has45DegreeRotation = false;
         bool has90DegreeRotation = false;
-        
+
         for (final AxisLabel label in axis.visibleLabels) {
-          if (!label.isVisible) continue;
-          
+          if (!label.isVisible) {
+            continue;
+          }
+
           // Check if any labels have 45-degree rotation
           final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
-          if ((label.labelSize.width - size45.width).abs() < 0.01 && 
+          if ((label.labelSize.width - size45.width).abs() < 0.01 &&
               (label.labelSize.height - size45.height).abs() < 0.01) {
             has45DegreeRotation = true;
           }
-          
+
           // Check if any labels have 90-degree rotation
           final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
-          if ((label.labelSize.width - size90.width).abs() < 0.01 && 
+          if ((label.labelSize.width - size90.width).abs() < 0.01 &&
               (label.labelSize.height - size90.height).abs() < 0.01) {
             has90DegreeRotation = true;
           }
         }
-        
+
         // Apply the most extreme rotation found - 90° only if needed
-        if (has90DegreeRotation) {
-          rotationAngle = angle90Degree;
-        } else if (has45DegreeRotation) {
+        if (has45DegreeRotation) {
           rotationAngle = angle45Degree;
+        } else if (has90DegreeRotation) {
+          rotationAngle = angle90Degree;
         }
       }
     }
 
     final bool isMultipleRows = action == AxisLabelIntersectAction.multipleRows;
     final bool isOutSide = axis.labelPosition == ChartDataLabelPosition.outside;
-    final bool normalOrder = (!axis.invertElementsOrder && isOutSide) ||
-        (axis.invertElementsOrder && !isOutSide);
+    final bool normalOrder =
+        (!axis.invertElementsOrder && isOutSide) || (axis.invertElementsOrder && !isOutSide);
     final List<AxisLabel> axisLabels = axis.visibleLabels;
     for (final AxisLabel label in axisLabels) {
       if (!label.isVisible || label.position == null || label.position!.isNaN) {
@@ -4761,25 +4763,25 @@ class _VerticalAxisRenderer extends _AxisRenderer {
         // First check if there are any 45-degree rotated labels
         bool has45DegreeRotation = false;
         bool has90DegreeRotation = false;
-        
+
         for (final AxisLabel label in axis.visibleLabels) {
           if (!label.isVisible) continue;
-          
+
           // Check if any labels have 45-degree rotation
           final Size size45 = measureText(label.renderText, label.labelStyle, angle45Degree);
-          if ((label.labelSize.width - size45.width).abs() < 0.01 && 
+          if ((label.labelSize.width - size45.width).abs() < 0.01 &&
               (label.labelSize.height - size45.height).abs() < 0.01) {
             has45DegreeRotation = true;
           }
-          
+
           // Check if any labels have 90-degree rotation
           final Size size90 = measureText(label.renderText, label.labelStyle, angle90Degree);
-          if ((label.labelSize.width - size90.width).abs() < 0.01 && 
+          if ((label.labelSize.width - size90.width).abs() < 0.01 &&
               (label.labelSize.height - size90.height).abs() < 0.01) {
             has90DegreeRotation = true;
           }
         }
-        
+
         // Apply the most extreme rotation found - 90° only if needed
         if (has90DegreeRotation) {
           rotationAngle = angle90Degree;
