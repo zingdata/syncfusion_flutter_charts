@@ -2451,10 +2451,6 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
 
     final int length = visibleLabels.length;
 
-    if (effectiveLabelIntersectAction == AxisLabelIntersectAction.auto && isXAxis) {
-      _checkForRotation();
-    }
-
     _AlignLabel betweenLabelsAlign;
     switch (labelAlignment) {
       case LabelAlignment.start:
@@ -2501,6 +2497,10 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     } else {
       _hasCollidingLabels = false;
       _arrangeLabels(length, startLabelAlign, betweenLabelsAlign, endLabelAlign);
+    }
+
+    if (effectiveLabelIntersectAction == AxisLabelIntersectAction.auto && isXAxis) {
+      _checkForRotation();
     }
   }
 
