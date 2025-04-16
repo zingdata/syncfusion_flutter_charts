@@ -2799,6 +2799,7 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
     // If no intersection, keep the label with normal rotation
     if (!_isIntersect(current, source)) {
       // No need to hide - display normally
+      debugPrint('auto 1: ${current.renderText}');
       return current;
     }
 
@@ -2809,6 +2810,7 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
 
     // If no intersection with 45-degree rotation, use it
     if (!_isIntersect(current, source)) {
+      debugPrint('auto 2: ${current.renderText}');
       return current;
     }
 
@@ -2817,6 +2819,7 @@ abstract class RenderChartAxis extends RenderBox with ChartAreaUpdateMixin {
       ..labelSize = measureText(current.renderText, current.labelStyle, angle90Degree)
       ..position = align(pointToPixel(current.value), current);
 
+    debugPrint('auto 3: ${current.renderText}');
     return current;
   }
 
